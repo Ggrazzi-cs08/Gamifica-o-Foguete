@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Missão: lançar o foguete</title>
+<style>
+:root{--bg:#eef3fa;--card:#ffffff;--ink:#14213d;--muted:#55627a;--line:#d5deec;--sky:#dfeafb;--ground:#5b9a54;--trail:#2457d6;--target:#f2b705;--ok:#16794a;--btn:#2457d6;--btnink:#ffffff;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--card:#131c2e;--ink:#eaf0fb;--muted:#9aa8c2;--line:#26334d;--sky:#0f1a31;--ground:#3f7a3a;--trail:#7aa7ff;--target:#ffd23f;--ok:#4fe39a;--btn:#7aa7ff;--btnink:#0b1220;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0b1220;--card:#131c2e;--ink:#eaf0fb;--muted:#9aa8c2;--line:#26334d;--sky:#0f1a31;--ground:#3f7a3a;--trail:#7aa7ff;--target:#ffd23f;--ok:#4fe39a;--btn:#7aa7ff;--btnink:#0b1220;color-scheme:dark}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Avenir Next","Trebuchet MS",system-ui,sans-serif;line-height:1.5}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:1.5rem;line-height:1.2;margin:8px 0 6px}
+h2{font-size:1.1rem;margin:0 0 8px}
+.sub{margin:0;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:14px 0}
+canvas{display:block;width:100%;border-radius:10px}
+#sim{aspect-ratio:2/1}
+#chart{aspect-ratio:16/10}
+.ctl{margin-top:12px}
+.ctl label{font-weight:700;font-size:1.05rem}
+output{font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;height:32px;accent-color:var(--btn)}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.btns button{flex:1 1 140px}
+button{min-height:44px;padding:0 18px;border:0;border-radius:10px;background:var(--btn);color:var(--btnink);font:inherit;font-weight:700;cursor:pointer}
+button.alt{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible,input:focus-visible{outline:3px solid var(--target);outline-offset:2px}
+.res{margin:10px 0 0;min-height:3em;font-size:1.05rem}
+.res.ok{color:var(--ok);font-weight:700}
+[hidden]{display:none!important}
+.hud{display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between;margin-bottom:10px;font-weight:600}
+.medals{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 10px}
+.medals:empty{display:none}
+.chip{background:var(--sky);border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:.85rem}
+.quiz,.end{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--sky)}
+.quiz p,.end p{margin:0 0 8px;font-weight:600}
+.quiz .btns button{flex:1 1 90px}
+#qf{font-weight:400;min-height:1.5em}
+@media (min-width:900px){
+main{max-width:1180px;padding:24px;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);column-gap:20px;align-items:start}
+main>h1,main>.sub{grid-column:1/-1}
+main>section:nth-of-type(1){grid-column:1;grid-row:3/span 3}
+main>section:nth-of-type(n+2){grid-column:2}
+.card{margin:0 0 16px}
+h1{font-size:1.9rem}
+.res{font-size:1.15rem}
+}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:6px 8px;text-align:center;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600;font-size:.9rem}
+.cap,.note{color:var(--muted);font-size:.9rem;margin:8px 0 0}
+ol{margin:0;padding-left:1.2em}
+li{margin:6px 0}
+</style>
+</head>
+<body>
+<main>
+<h1>Missão: lançar o foguete 🚀</h1>
+<p class="sub">O alvo 🚩 está a <b id="tg"></b> m do lançamento. Missão: acerte 3 alvos. Escolha o ângulo e pouse na faixa amarela.</p>
+
+<section class="card">
+<div class="hud"><span>⭐ <b id="pts">0</b> pontos</span><span>Patente: <b id="rk">Cadete</b></span><span>Alvo <b id="rd">1</b> de 3</span></div>
+<div id="medals" class="medals" aria-label="Medalhas"></div>
+<canvas id="sim" aria-label="Simulação do lançamento do foguete"></canvas>
+<div class="ctl">
+<label for="ang">Ângulo de lançamento: <output id="angv">45°</output></label>
+<input id="ang" type="range" min="10" max="80" value="45" step="5">
+<div class="btns"><button id="go" type="button">Lançar!</button><button id="nt" class="alt" type="button">Novo alvo</button></div>
+</div>
+<p id="res" class="res" role="status">Escolha um ângulo e aperte “Lançar!”.</p>
+<div id="quiz" class="quiz" hidden><p id="qt"></p><div id="qo" class="btns"></div><p id="qf"></p></div>
+<div id="end" class="end" hidden><p id="endt"></p><div class="btns"><button id="nm" type="button">Nova missão</button></div></div>
+</section>
+
+<section class="card">
+<h2>Seus lançamentos</h2>
+<div class="scroll"><table>
+<thead><tr><th>Nº</th><th>Ângulo</th><th>Distância (m)</th><th>Altura máx. (m)</th><th>Acertou</th></tr></thead>
+<tbody id="rows"></tbody>
+</table></div>
+<div class="btns"><button id="clr" class="alt" type="button">Apagar lançamentos</button></div>
+</section>
+
+<section class="card">
+<h2>Gráfico: ângulo e distância</h2>
+<canvas id="chart" aria-label="Gráfico da distância em função do ângulo"></canvas>
+<p class="cap">Cada ponto é um lançamento seu: o ângulo fica na horizontal e a distância na vertical.</p>
+</section>
+
+<section class="card">
+<h2>Descubra</h2>
+<ol>
+<li>Qual ângulo faz o foguete chegar mais longe? Faça vários testes.</li>
+<li>Compare os lançamentos de 30° e de 60°. O que você percebe?</li>
+<li>O que acontece com a altura máxima quando o ângulo aumenta?</li>
+<li>Olhe o gráfico: que desenho os pontos formam?</li>
+<li>Acerte 3 alvos diferentes e anote os ângulos que você usou.</li>
+</ol>
+<p class="note">Modelo simplificado: sem ar, velocidade de 30 m/s e gravidade de 10 m/s².</p>
+</section>
+</main>
+
+<script>
+(function(){
+var V=30,G=10,XM=100,YM=50,SP=1.5,TOL=3;
+var $=function(i){return document.getElementById(i)};
+var sim=$('sim'),chart=$('chart'),ang=$('ang'),go=$('go');
+var S,K,launches=[],target=0,busy=false;
+var pts=0,round=1,MAXR=3,qok=0,pendingNew=false,earned={},angs={},curq=null;
+var rad=function(a){return a*Math.PI/180};
+var R=function(a){return V*V*Math.sin(2*rad(a))/G};
+var H=function(a){return Math.pow(V*Math.sin(rad(a)),2)/(2*G)};
+var TT=function(a){return 2*V*Math.sin(rad(a))/G};
+var col=function(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()};
+var EMO='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+var M={l:36,r:14,t:10,b:26};
+
+function fit(c){var d=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=Math.round(w*d);c.height=Math.round(h*d);var x=c.getContext('2d');x.setTransform(d,0,0,d,0,0);return{x:x,w:w,h:h};}
+function line(c,x1,y1,x2,y2){c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();}
+function sx(x){return M.l+x/XM*(S.w-M.l-M.r)}
+function sy(y){return S.h-M.b-y/YM*(S.h-M.t-M.b)}
+
+function path(c,a,tm){
+  c.beginPath();
+  for(var i=0;i<=40;i++){
+    var t=tm*i/40,x=V*Math.cos(rad(a))*t,y=Math.max(V*Math.sin(rad(a))*t-G/2*t*t,0);
+    if(i)c.lineTo(sx(x),sy(y));else c.moveTo(sx(x),sy(y));
+  }
+  c.stroke();
+}
+function rocket(c,px,py,phi){
+  c.save();c.translate(px,py);c.rotate(-(phi-Math.PI/4));
+  c.font='24px '+EMO;c.textAlign='center';c.textBaseline='middle';c.fillText('🚀',0,0);
+  c.restore();
+}
+
+function scene(a,t){
+  var c=S.x;
+  c.clearRect(0,0,S.w,S.h);
+  c.fillStyle=col('--sky');c.fillRect(0,0,S.w,S.h);
+  c.lineWidth=1;c.strokeStyle=col('--line');c.fillStyle=col('--muted');
+  c.font='11px system-ui,sans-serif';
+  c.textAlign='center';c.textBaseline='top';
+  for(var x=0;x<=XM;x+=20){line(c,sx(x),sy(0),sx(x),sy(YM));c.fillText(x,sx(x),sy(0)+6);}
+  c.textAlign='right';c.textBaseline='middle';
+  for(var y=0;y<=YM;y+=10){line(c,sx(0),sy(y),sx(XM),sy(y));c.fillText(y,sx(0)-6,sy(y));}
+  c.textAlign='left';c.textBaseline='top';c.fillText('altura (m)',sx(0)+6,sy(YM)+4);
+  c.textAlign='right';c.textBaseline='bottom';c.fillText('distância (m)',sx(XM)-6,sy(0)-16);
+  c.fillStyle=col('--ground');c.fillRect(sx(0),sy(0)-1,sx(XM)-sx(0),4);
+  c.fillStyle=col('--target');c.fillRect(sx(target-TOL),sy(0)-5,sx(target+TOL)-sx(target-TOL),9);
+  c.font='20px '+EMO;c.textAlign='center';c.textBaseline='bottom';c.fillStyle=col('--ink');c.fillText('🚩',sx(target),sy(0)-7);
+  c.strokeStyle=col('--trail');c.fillStyle=col('--trail');c.lineWidth=1.5;c.globalAlpha=.35;
+  launches.forEach(function(l){path(c,l.a,TT(l.a));c.beginPath();c.arc(sx(l.d),sy(0),3,0,7);c.fill();});
+  c.globalAlpha=1;
+  if(t===undefined){
+    var L=48,r=rad(a);
+    c.setLineDash([5,4]);c.lineWidth=2;
+    line(c,sx(0),sy(0),sx(0)+L*Math.cos(r),sy(0)-L*Math.sin(r));
+    c.setLineDash([]);
+    rocket(c,sx(0),sy(0)-6,r);
+  }else{
+    c.lineWidth=3;path(c,a,t);
+    var px=V*Math.cos(rad(a))*t,py=Math.max(V*Math.sin(rad(a))*t-G/2*t*t,0);
+    rocket(c,sx(px),sy(py)-2,Math.atan2(V*Math.sin(rad(a))-G*t,V*Math.cos(rad(a))));
+  }
+}
+
+function drawChart(){
+  var c=K.x,w=K.w,h=K.h,l=36,r=14,t=10,b=26;
+  var X=function(a){return l+a/90*(w-l-r)},Y=function(d){return h-b-d/100*(h-t-b)};
+  c.clearRect(0,0,w,h);
+  c.fillStyle=col('--sky');c.fillRect(0,0,w,h);
+  c.lineWidth=1;c.strokeStyle=col('--line');c.fillStyle=col('--muted');c.font='11px system-ui,sans-serif';
+  c.textAlign='center';c.textBaseline='top';
+  for(var a=0;a<=90;a+=15){line(c,X(a),Y(0),X(a),Y(100));c.fillText(a+'°',X(a),Y(0)+6);}
+  c.textAlign='right';c.textBaseline='middle';
+  for(var d=0;d<=100;d+=20){line(c,X(0),Y(d),X(90),Y(d));c.fillText(d,X(0)-6,Y(d));}
+  c.textAlign='left';c.textBaseline='top';c.fillText('distância (m)',X(0)+6,Y(100)+4);
+  launches.forEach(function(p){
+    c.beginPath();c.arc(X(p.a),Y(p.d),6,0,7);
+    c.fillStyle=p.hit?col('--ok'):col('--trail');c.fill();
+    c.strokeStyle=col('--card');c.lineWidth=2;c.stroke();
+  });
+}
+
+function finish(a){
+  var d=R(a),h=H(a),hit=Math.abs(d-target)<=TOL,res=$('res'),tg=target,extra='';
+  launches.push({a:a,d:d,h:h,hit:hit});
+  var tr=document.createElement('tr');
+  tr.innerHTML='<td>'+launches.length+'</td><td>'+a+'°</td><td>'+Math.round(d)+'</td><td>'+Math.round(h)+'</td><td>'+(hit?'✅':'—')+'</td>';
+  $('rows').appendChild(tr);
+  drawChart();
+  res.className='res'+(hit?' ok':'');
+  angs[a]=1;
+  if(Object.keys(angs).length>=5)extra+=award('sci');
+  if(hit){pts+=50;round++;pendingNew=true;extra=award('first')+extra;}
+  if(hit)res.textContent='🎯 Acertou o alvo! Pousou a '+Math.round(d)+' m. +50 pontos.'+extra;
+  else res.textContent='Pousou a '+Math.round(d)+' m, '+(d<target?'antes':'depois')+' do alvo.'+extra;
+  busy=false;hud();quiz(d,tg);go.disabled=true;
+}
+
+function newTarget(){var o=[10,15,20,25,30,35,40,45,50,55,60,65,70,75,80],t;do{t=Math.round(R(o[Math.floor(Math.random()*o.length)]));}while(t===target);target=t;$('tg').textContent=target;}
+var MED={first:['🎯','Primeiro alvo'],brain:['🧠','Mente brilhante'],sci:['🔭','Cientista'],done:['🏆','Missão completa']};
+function award(k){if(earned[k])return '';earned[k]=1;var s=document.createElement('span');s.className='chip';s.textContent=MED[k][0]+' '+MED[k][1];$('medals').appendChild(s);return ' Medalha nova: '+MED[k][0]+' '+MED[k][1]+'!';}
+function rank(){return pts>=150?'Astronauta':pts>=100?'Comandante':pts>=50?'Piloto':'Cadete';}
+function hud(){$('pts').textContent=pts;$('rk').textContent=rank();$('rd').textContent=Math.min(round,MAXR);}
+function shuf(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t;}return a;}
+var deck=[];
+function ri(a,b){return a+Math.floor(Math.random()*(b-a+1));}
+function opts(c,l){var o=[c];l.concat([c+1,c+2,c+3]).forEach(function(x){if(x>0&&o.indexOf(x)<0&&o.length<3)o.push(x);});return o.map(String);}
+var QT=[
+  function(D,tg){var df=Math.abs(tg-D);return ['O alvo estava a '+tg+' m e o foguete pousou a '+D+' m. Qual é a diferença, em metros?',opts(df,[tg+D,df+10]),String(df),'A diferença é uma subtração: o maior número menos o menor.'];},
+  function(){var X=[20,40,60,80,90,100,120,150,90][ri(0,8)];return ['Na rampa de testes, o foguete foi inclinado '+X+'°. Esse ângulo é:',['agudo','reto','obtuso'],X<90?'agudo':X===90?'reto':'obtuso','Agudo é menor que 90°, reto é 90° e obtuso é maior que 90°.'];},
+  function(D){return ['O foguete saiu do ponto (0, 0) e pousou no chão, a '+D+' m. Qual é o par ordenado do ponto de pouso?',['('+D+', 0)','(0, '+D+')','('+D+', '+D+')'],'('+D+', 0)','No par ordenado, o primeiro número é a posição na horizontal (x) e o segundo é a altura (y).'];},
+  function(){var a=ri(3,9),b=ri(3,9),c=a*b;return ['Cada foguete usa '+a+' tanques de combustível. Para '+b+' foguetes, quantos tanques são necessários?',opts(c,[a+b,c+a]),String(c),'Multiplicar é somar parcelas iguais: '+a+' × '+b+' = '+c+'.'];},
+  function(){var g=ri(2,6),q=ri(3,9),x=g*q;return ['Uma equipe de '+x+' engenheiros foi dividida em '+g+' grupos iguais. Quantos engenheiros ficam em cada grupo?',opts(q,[x-g,g+1]),String(q),'Dividir é repartir em partes iguais: '+x+' ÷ '+g+' = '+q+'.'];},
+  function(){var d=ri(2,4),k=ri(2,9),t=d*k;return ['Um tanque de '+t+' litros está cheio até 1/'+d+'. Quantos litros há nele?',opts(k,[t-k,d]),String(k),'Pegar 1/'+d+' de '+t+' é dividir por '+d+': '+t+' ÷ '+d+' = '+k+'.'];},
+  function(){var n=[4,5,6,8,10][ri(0,4)],m;do{m=ri(1,n-1);}while(m*2===n);return ['A pista foi dividida em '+n+' partes iguais e o foguete passou por '+m+' delas. Que fração da pista ele percorreu?',[m+'/'+n,n+'/'+m,(n-m)+'/'+n],m+'/'+n,'O numerador mostra as partes percorridas ('+m+') e o denominador, o total de partes ('+n+').'];},
+  function(D){return ['Se o foguete fizer dois lançamentos iguais a este ('+D+' m), qual será a distância total, em metros?',opts(2*D,[D+2,2*D-10]),String(2*D),'Dois lançamentos iguais: '+D+' + '+D+' = '+2*D+'.'];},
+  function(){var n=2*ri(10,45);return ['A pista tem '+n+' m. A que distância do início fica a metade da pista?',opts(n/2,[n-2,n/2+10]),String(n/2),'A metade é a divisão por 2: '+n+' ÷ 2 = '+n/2+'.'];},
+  function(){var l=ri(3,9);return ['A plataforma de lançamento é um quadrado de lado '+l+' m. Qual é o perímetro dela, em metros?',opts(4*l,[l*l,l+4]),String(4*l),'O perímetro é a soma dos 4 lados: 4 × '+l+' = '+4*l+'.'];},
+  function(){var d=[3,4,5][ri(0,2)],m=d*ri(4,30);return ['Qual destes números é múltiplo de '+d+'?',[m,m+1,m+2].map(String),String(m),'Múltiplo de '+d+' é um número da tabuada do '+d+': '+m+' = '+d+' × '+m/d+'.'];}
+];
+function quiz(d,tg){
+  var D=Math.round(d);
+  if(!deck.length)deck=shuf(QT.map(function(_,i){return i;}));
+  var r=QT[deck.pop()](D,tg),o=r[1];
+  curq={c:r[2],why:r[3]};
+  $('qt').textContent='Pergunta-relâmpago: '+r[0];
+  var box=$('qo');box.innerHTML='';$('qf').textContent='';
+  (o[0]==='agudo'?o:shuf(o)).forEach(function(t){var b=document.createElement('button');b.type='button';b.className='alt';b.textContent=t;b.dataset.v=t;b.onclick=function(){answer(t);};box.appendChild(b);});
+  $('quiz').hidden=false;
+}
+function answer(t){
+  var ok=t===curq.c,bs=$('qo').children,msg;
+  for(var i=0;i<bs.length;i++){bs[i].disabled=true;if(bs[i].dataset.v===curq.c)bs[i].textContent='✓ '+curq.c;}
+  if(ok){pts+=10;qok++;msg='✅ Isso mesmo! +10 pontos.'+(qok>=3?award('brain'):'');}
+  else msg='Quase! A resposta certa era '+curq.c+'. '+curq.why;
+  $('qf').textContent=msg;
+  go.disabled=false;
+  if(pendingNew){pendingNew=false;if(round>MAXR)endMission();else{newTarget();scene(+ang.value);}}
+  hud();
+}
+function endMission(){var m=award('done');$('end').hidden=false;$('endt').textContent='🏆 Missão completa! Você fez '+pts+' pontos e chegou a '+rank()+'.'+m;go.disabled=true;}
+$('nm').onclick=function(){pts=0;round=1;qok=0;earned={};pendingNew=false;$('medals').innerHTML='';$('end').hidden=true;$('quiz').hidden=true;go.disabled=false;newTarget();hud();$('res').className='res';$('res').textContent='Nova missão! Escolha um ângulo.';scene(+ang.value);};
+function layout(){S=fit(sim);K=fit(chart);if(!busy)scene(+ang.value);drawChart();}
+
+go.onclick=function(){
+  if(busy)return;
+  busy=true;go.disabled=true;$('quiz').hidden=true;
+  var a=+ang.value,T=TT(a);
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){scene(a,T);finish(a);return;}
+  var t0=performance.now();
+  (function f(now){
+    var t=Math.min((now-t0)/1000*SP,T);
+    scene(a,t);
+    if(t<T)requestAnimationFrame(f);else finish(a);
+  })(t0);
+};
+ang.oninput=function(){$('angv').textContent=ang.value+'°';if(!busy)scene(+ang.value);};
+$('nt').onclick=function(){if(busy)return;newTarget();$('res').className='res';$('res').textContent='Novo alvo a '+target+' m. Escolha um ângulo.';scene(+ang.value);};
+$('clr').onclick=function(){if(busy)return;launches=[];$('rows').innerHTML='';$('res').className='res';$('res').textContent='Lançamentos apagados. Escolha um ângulo.';drawChart();scene(+ang.value);};
+window.addEventListener('resize',layout);
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',layout);
+newTarget();layout();
+})();
+</script>
+</body>
+</html>
